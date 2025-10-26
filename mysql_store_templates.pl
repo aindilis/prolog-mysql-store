@@ -26,6 +26,7 @@
     
     % Hybrid operations (ground + templates)
     store_assert_smart/2,
+    store_retract_smart/2,
     store_call_smart/2
 ]).
 
@@ -363,6 +364,33 @@ store_assert_smart(ConnectionId, ContextualTerm) :-
     ;
         % Has variables - use template storage
         store_template(ConnectionId, ContextualTerm)
+    ).
+
+%! store_retract_smart(+ConnectionId, +ContextualTerm) is det.
+%
+% Smart retraction - automatically detects if term is ground or has variables.
+% Routes to appropriate retraction method.
+%
+% @arg ConnectionId Database connection identifier
+% @arg ContextualTerm Term in format Context:Term
+%
+% @example Ground fact retraction
+%   ?- store_retract_smart(mydb, ctx:person(john, 30)).
+%
+% @example Template retraction  
+%   ?- store_retract_smart(mydb, ctx:person(Name, Age)).
+%
+store_retract_smart(ConnectionId, Context:Term) :-
+    must_be(atom, Context),
+    must_be(nonvar, Term),
+    
+    % Check if term is ground (no variables)
+    (ground(Term) ->
+        % Ground term - use regular retract
+        mysql_store:store_retract(ConnectionId, Context:Term)
+    ;
+        % Has variables - use template retract
+        store_retract_template(ConnectionId, Context:Term)
     ).
 
 %! store_call_smart(+ConnectionId, +ContextualPattern) is nondet.

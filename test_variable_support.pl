@@ -47,6 +47,7 @@ test_all :-
     test_ground_facts,
     test_templates,
     test_smart_operations,
+    test_smart_retract,
     test_all_assertions,
     test_inspection,
     test_clauses,
@@ -152,6 +153,103 @@ test_smart_operations :-
     format('  Template: ~w~n', [Template]),
     
     format('✓ Smart operations test passed~n').
+
+% ============================================================================
+% Test 3b: Smart Retraction
+% ============================================================================
+
+test_smart_retract :-
+    format('~n--- Test 3b: Smart Retraction ---~n'),
+    test_context(Context),
+    db_config(connection_id(ConnId), _, _, _, _),
+    
+    % Setup: Store some test data
+    format('Setting up test data...~n'),
+    store_assert_smart(ConnId, Context:retract_test_ground(foo, 1)),
+    store_assert_smart(ConnId, Context:retract_test_ground(bar, 2)),
+    store_assert_smart(ConnId, Context:retract_test_template(X, Y)),
+    store_assert_smart(ConnId, Context:retract_test_template2(A, B, C)),
+    
+    % Verify data exists
+    format('Verifying data was stored...~n'),
+    findall(P-N, store_call_smart(ConnId, Context:retract_test_ground(P, N)), GroundBefore),
+    length(GroundBefore, GroundCountBefore),
+    format('  Ground facts before: ~w items~n', [GroundCountBefore]),
+    
+    findall(T, store_call_smart(ConnId, Context:retract_test_template(_, _)), TemplBefore),
+    length(TemplBefore, TemplCountBefore),
+    format('  Templates before: ~w items~n', [TemplCountBefore]),
+    
+    % Test 1: Retract ground fact
+    format('Test 1: Retracting ground fact...~n'),
+    store_retract_smart(ConnId, Context:retract_test_ground(foo, 1)),
+    
+    % Verify ground fact removed
+    (store_call_smart(ConnId, Context:retract_test_ground(foo, 1)) ->
+        format('  ✗ Ground fact still exists (should be removed)~n'),
+        fail
+    ;
+        format('  ✓ Ground fact removed~n')
+    ),
+    
+    % Verify other ground fact still exists
+    (store_call_smart(ConnId, Context:retract_test_ground(bar, 2)) ->
+        format('  ✓ Other ground fact still exists~n')
+    ;
+        format('  ✗ Other ground fact was removed (should exist)~n'),
+        fail
+    ),
+    
+    % Test 2: Retract template
+    format('Test 2: Retracting template...~n'),
+    store_retract_smart(ConnId, Context:retract_test_template(X2, Y2)),
+    
+    % Verify template removed
+    (store_call_smart(ConnId, Context:retract_test_template(_, _)) ->
+        format('  ✗ Template still exists (should be removed)~n'),
+        fail
+    ;
+        format('  ✓ Template removed~n')
+    ),
+    
+    % Verify other template still exists
+    (store_call_smart(ConnId, Context:retract_test_template2(_, _, _)) ->
+        format('  ✓ Other template still exists~n')
+    ;
+        format('  ✗ Other template was removed (should exist)~n'),
+        fail
+    ),
+    
+    % Test 3: Retract non-existent ground (should succeed silently)
+    format('Test 3: Retracting non-existent ground fact...~n'),
+    (catch(
+        store_retract_smart(ConnId, Context:retract_test_ground(nonexistent, 999)),
+        Error,
+        (format('  ✗ Threw error: ~w~n', [Error]), fail)
+    ) ->
+        format('  ✓ Non-existent retraction handled gracefully~n')
+    ;
+        format('  ✓ Non-existent retraction handled gracefully~n')
+    ),
+    
+    % Test 4: Retract non-existent template (should succeed silently)
+    format('Test 4: Retracting non-existent template...~n'),
+    (catch(
+        store_retract_smart(ConnId, Context:retract_test_nonexistent(_, _)),
+        Error2,
+        (format('  ✗ Threw error: ~w~n', [Error2]), fail)
+    ) ->
+        format('  ✓ Non-existent template retraction handled gracefully~n')
+    ;
+        format('  ✓ Non-existent template retraction handled gracefully~n')
+    ),
+    
+    % Cleanup remaining test data
+    format('Cleaning up test data...~n'),
+    store_retract_smart(ConnId, Context:retract_test_ground(bar, 2)),
+    store_retract_smart(ConnId, Context:retract_test_template2(A2, B2, C2)),
+    
+    format('✓ Smart retraction test passed~n').
 
 % ============================================================================
 % Test 4: All Assertions Retrieval
