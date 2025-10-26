@@ -27,7 +27,10 @@
     % Hybrid operations (ground + templates)
     store_assert_smart/2,
     store_retract_smart/2,
-    store_call_smart/2
+    store_call_smart/2,
+
+    var_info/2,
+    byte_to_hex/2
 ]).
 
 :- use_module(mysql_store).
